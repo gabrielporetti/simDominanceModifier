@@ -50,12 +50,12 @@ def calcMBeta(A, BETA):
     else:
         return round(1-BETA, 1)
 
-##########----------calc absolute fitness based on sex, standardize concentration of B and selection regime
+##########----------calc fitness coefficient based on sex, standardize concentration of B and selection regime
 ##########  SR = 0 for sexual antagonism
 ##########  SR = 1 for sexually concordant selection using 'female' fitness eq
 ##########  SR = 2 for sexually concordant selection using 'male' fitness eq
 
-def calcAbsFitness(SEX, STCONC, SR, S_F, S_M, GAMMA_F, GAMMA_M):
+def calcFitCoeff(SEX, STCONC, SR, S_F, S_M, GAMMA_F, GAMMA_M):
     if SR == 0:
         if SEX == 'm':
             return (1 - (S_M * STCONC) ** GAMMA_M)
@@ -66,7 +66,7 @@ def calcAbsFitness(SEX, STCONC, SR, S_F, S_M, GAMMA_F, GAMMA_M):
     elif SR == 2:
         return (1 - (S_M * STCONC) ** GAMMA_M)
 '''
-def calcAbsFitness(SEX, STCONC, SR, S_F, S_M, GAMMA_F, GAMMA_M):
+def calcFitCoeff(SEX, STCONC, SR, S_F, S_M, GAMMA_F, GAMMA_M):
     if SR == 0:
         if SEX == 'm':
             return 0.9
@@ -91,15 +91,15 @@ def mutateBindValue(mu, bValue):
     return (newBValue)
 
 ###########----------generate gamete through selection on parents
-def selectionGamete(listIndiv, maxFit, popSize):
+def selectionGamete(listIndiv, maxFitCoeff, popSize):
     #####-----while loop stop when get enough gametes
     listID, nGam = [], 0
     lGamAlpha, lGamA, lGamBeta = [], [], []
     while nGam < popSize:
         #####-----choose random parent and get relative fitness
         pID = int(random.randint(0, len(listIndiv) - 1))
-        pFit = listIndiv[pID].getAbsFitness()
-        relFit = pFit/maxFit
+        pFitCoeff = listIndiv[pID].getFitCoeff()
+        relFit = pFitCoeff/maxFitCoeff
         #####-----selection by testing relFit against random uniform variate
         rVar = np.random.uniform(0, 1, 1)
         if relFit >= rVar:
@@ -111,21 +111,21 @@ def selectionGamete(listIndiv, maxFit, popSize):
     #####-----return list of gametes
     return ([lGamAlpha, lGamA, lGamBeta])
 
-##########----------get highest fitness
-def getMaxAbsFit(listIndiv):
-    listAbsFit = [x.getAbsFitness() for x in listIndiv]
-    maxAbsFit = np.max(listAbsFit)
-    return(maxAbsFit)
+##########----------get highest fitness coefficient
+def getMaxFitCoeff(listIndiv):
+    listFitCoeff = [x.getFitCoeff() for x in listIndiv]
+    maxFitCoeff = np.max(listFitCoeff)
+    return(maxFitCoeff)
 
-##########----------get average fitness
-def getAvgAbsFit(listIndiv):
-    listStat = [x.getAbsFitness() for x in listIndiv]
+##########----------get average fitness coefficient
+def getAvgFitCoeff(listIndiv):
+    listStat = [x.getFitCoeff() for x in listIndiv]
     avgStat = np.mean(listStat)
     return (avgStat)
 
-##########----------get average fitness by genotype of protein A
-def getAvgAbsFit_GtA(listIndiv):
-    listFit = [x.getAbsFitness() for x in listIndiv]
+##########----------get average fitness coefficient by genotype of protein A
+def getAvgFitCoeff_GtA(listIndiv):
+    listFit = [x.getFitCoeff() for x in listIndiv]
     listGt = [x.getGtA() for x in listIndiv]
     n0, n1, n2, fitA0, fitA1, fitA2 = 0, 0, 0, [], [], []
     for i in range(len(listIndiv)):
@@ -292,7 +292,7 @@ class indiv():
         self.a1, self.a2 = A1, A2
         self.beta1, self.beta2 = BETA1, BETA2
         self.gtA = calcGt(self.a1, self.a2)
-        self.absFitness = 1
+        self.fitCoeff = 1
 
         #####-----assign binding affinity between sex TF and gene A binding site
         self.mSexAlpha1 = calcMAlpha(self.sex, self.alpha1)
@@ -322,8 +322,8 @@ class indiv():
         #####-----standardize expression of B
         self.stConcB = (self.concB-self.concMinB)/( self.concMaxB-self.concMinB)
 
-        #####-----calc absolute fitness using stConcB and selection parameters
-        #self.absFitness = calcAbsFitness(SEX, self.stConcB, S_F, S_M, GAMMA_F, GAMMA_M)
+        #####-----calc fitness coefficient using stConcB and selection parameters
+        #self.fitCoeff = calcFitCoeff(SEX, self.stConcB, S_F, S_M, GAMMA_F, GAMMA_M)
 
     #####-----Propoerties of individual
     def getSex(self):
@@ -348,10 +348,10 @@ class indiv():
         return [self.concMinB, self.concMaxB]
     def getStExpB(self):
         return self.stConcB
-    def getAbsFitness(self):
-        return self.absFitness
+    def getFitCoeff(self):
+        return self.fitCoeff
     def getSmy(self):
-        SMY = [self.sex, self.gtA, self.a1, self.a2, self.alpha1, self.alpha2, self.beta1, self.beta2, self.concA1, self.concA2, self.stConcB, self.absFitness]
+        SMY = [self.sex, self.gtA, self.a1, self.a2, self.alpha1, self.alpha2, self.beta1, self.beta2, self.concA1, self.concA2, self.stConcB, self.fitCoeff]
         return SMY
 
     #####-----randomly pass on one allele as gamete
@@ -441,20 +441,20 @@ def runSim01(CONC_D, GA, KA, KB, ASAT, SR, S_F, S_M, GAMMA_F, GAMMA_M, UA, UB, N
             POPUL_M.append(
                 indiv('m', CONC_D, GA, lAlpha1[i], lAlpha2[i], lA1[i], lA2[i], lBeta1[i], lBeta2[i], KA, KB, ASAT, S_F,
                       S_M, GAMMA_F, GAMMA_M, UA, UB))
-    ##########----------Initial calculation of absolute fitness
+    ##########----------Initial calculation of fitness coefficient
     for INDIV in POPUL_F + POPUL_M:
-        INDIV.absFitness = calcAbsFitness(INDIV.getSex(), INDIV.getStExpB(), SR, S_F, S_M, GAMMA_F, GAMMA_M)
+        INDIV.fitCoeff = calcFitCoeff(INDIV.getSex(), INDIV.getStExpB(), SR, S_F, S_M, GAMMA_F, GAMMA_M)
 
     ##########----------Run for NUMGEN generations
     ##########  if 'A' gets fixed (freq = 0 or 1), then sim stops after MaxExtraGEN generations
     extraGen, MaxExtraGen = 0, 500
     for gen in range(NUMGEN):
-        #####-----determine highest fitness
-        maxAbsFit_F = getMaxAbsFit(POPUL_F)
-        maxAbsFit_M = getMaxAbsFit(POPUL_M)
+        #####-----determine highest fitness coefficient
+        maxFitCoeff_F = getMaxFitCoeff(POPUL_F)
+        maxFitCoeff_M = getMaxFitCoeff(POPUL_M)
         #####-----get gametes using relative fitness
-        listFemGam = selectionGamete(POPUL_F, maxAbsFit_F, N)
-        listMalGam = selectionGamete(POPUL_M, maxAbsFit_M, N)
+        listFemGam = selectionGamete(POPUL_F, maxFitCoeff_F, N)
+        listMalGam = selectionGamete(POPUL_M, maxFitCoeff_M, N)
         lAlpha1, lA1, lBeta1 = listFemGam[0], listFemGam[1], listFemGam[2]
         lAlpha2, lA2, lBeta2 = listMalGam[0], listMalGam[1], listMalGam[2]
         #####-----create offspring from gametes
@@ -475,16 +475,16 @@ def runSim01(CONC_D, GA, KA, KB, ASAT, SR, S_F, S_M, GAMMA_F, GAMMA_M, UA, UB, N
         POPUL_F = OFFSPRING_F.copy()
         POPUL_M = OFFSPRING_M.copy()
 
-        #####-----Calculate fitness
+        #####-----Calculate fitness coefficient
         for INDIV in POPUL_F + POPUL_M:
-            INDIV.absFitness = calcAbsFitness(INDIV.getSex(), INDIV.getStExpB(), SR, S_F, S_M, GAMMA_F, GAMMA_M)
+            INDIV.fitCoeff = calcFitCoeff(INDIV.getSex(), INDIV.getStExpB(), SR, S_F, S_M, GAMMA_F, GAMMA_M)
 
         #####-----Collect data every 10 generations
         if (gen + 1) % 10 == 0:
             vParam = [SIMTYPE, CONC_D, GA, KA, KB, ASAT, SR, S_F, S_M, GAMMA_F, GAMMA_M, UA, UB, N, PROPF, NUMGEN, gen+1]
-            vMaxFit = [getMaxAbsFit(POPUL_F), getMaxAbsFit(POPUL_M), getMaxAbsFit(POPUL_F+POPUL_M)]
-            vAvgFit = [getAvgAbsFit(POPUL_F), getAvgAbsFit(POPUL_M), getAvgAbsFit(POPUL_F+POPUL_M)]
-            vAvgFit_GtA = getAvgAbsFit_GtA(POPUL_F) + getAvgAbsFit_GtA(POPUL_M) + getAvgAbsFit_GtA(POPUL_F+POPUL_M)
+            vMaxFit = [getMaxFitCoeff(POPUL_F), getMaxFitCoeff(POPUL_M), getMaxFitCoeff(POPUL_F+POPUL_M)]
+            vAvgFit = [getAvgFitCoeff(POPUL_F), getAvgFitCoeff(POPUL_M), getAvgFitCoeff(POPUL_F+POPUL_M)]
+            vAvgFit_GtA = getAvgFitCoeff_GtA(POPUL_F) + getAvgFitCoeff_GtA(POPUL_M) + getAvgFitCoeff_GtA(POPUL_F+POPUL_M)
             vAvgStExpA = [getAvgExpA(POPUL_F), getAvgExpA(POPUL_M), getAvgExpA(POPUL_F + POPUL_M)]
             vVarStExpA = [getVarExpA(POPUL_F), getVarExpA(POPUL_M), getVarExpA(POPUL_F + POPUL_M)]
             vAvgStExpB = [getAvgStExpB(POPUL_F), getAvgStExpB(POPUL_M), getAvgStExpB(POPUL_F+POPUL_M)]
@@ -518,9 +518,9 @@ def runSim01(CONC_D, GA, KA, KB, ASAT, SR, S_F, S_M, GAMMA_F, GAMMA_M, UA, UB, N
             break
         '''
         if gen == NUMGEN-1:
-            COLNAME = ['ID', 'SEX', 'GTA', 'A1', 'A2', 'ALPHA1', 'ALPHA2', 'BETA1', 'BETA2', 'concA1', 'concA2', 'stconB', 'absFitness']
+            COLNAME = ['ID', 'SEX', 'GTA', 'A1', 'A2', 'ALPHA1', 'ALPHA2', 'BETA1', 'BETA2', 'concA1', 'concA2', 'stconB', 'fitCoeff']
             dfIndiv = pd.DataFrame(columns=COLNAME)
-            #[self.sex, self.gtA, self.a1, self.a2, self.alpha1, self.alpha2, self.beta1, self.beta2, self.concA1, self.concA2, self.stConB, self.absFitness]
+            #[self.sex, self.gtA, self.a1, self.a2, self.alpha1, self.alpha2, self.beta1, self.beta2, self.concA1, self.concA2, self.stConB, self.fitCoeff]
             for i, INDIV in enumerate(POPUL_F+POPUL_M):
                 SMY = INDIV.getSmy()
                 dfIndiv.loc[len(dfIndiv)] = [i]+SMY
@@ -608,5 +608,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
